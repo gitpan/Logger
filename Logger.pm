@@ -2,27 +2,27 @@
 BEGIN { $diagnostics::PRETTY = 1 }
 
 package Pat::Logger;
-our $VERSION = '3.1';
+our $VERSION = '3.2';
 
-use lib qw( /Eng );
+use Time::localtime;
 
 use strict;
 use diagnostics;
 use Fcntl ':flock';
-use Pat::General;
+use Term::ANSIColor qw (:constants);
 
-use fields qw ( Debug_Log First_Message Separator time_pack sub_pack line_pack msg_pack );
+use fields qw ( Error_Message Error_Color Debug_Log First_Message Separator time_pack sub_pack line_pack msg_pack );
 
 
 # ------------------------
 # subroutine declorations:
 #-------------------------
 sub new($);
-sub new_stdout();
 sub debug_message($);
 sub separate();
 
 
+sub eval_time();
 sub _get_header();
 sub _pack_str($$$$);
 sub _print_to_file($);
@@ -30,23 +30,24 @@ sub _get_debug_params();
 
 
 # Global variables:
-my $time_pack = 'A22';
-my $sub_pack  = 'A29';
-my $line_pack = 'A10';
-my $msg_pack  = 'A99';
+my $time_pack = 'A18';
+my $sub_pack  = 'A39';
+my $line_pack = 'A6';
+my $msg_pack  = 'A97';
 
-my $separator = "\n";
-$separator  = '-' x substr $time_pack, 1;
+my $separator = "\n\n";
+$separator .= '-' x substr $time_pack, 1;
 $separator .= '-' x substr $sub_pack , 1;
 $separator .= '-' x substr $line_pack, 1;
 $separator .= '-' x substr $msg_pack , 1;
-$separator .= "\n";
+$separator .= "\n\n";
 
 
 # -----------------------------------------------------------------
 # Name         : new() (constructor).
 # Description  : Simple constructor that sets the unique_id value
-# Recives      : File to hold all debugging messages.
+# Recives      : File to hold all debugging messages ( optional ).
+#                If parameter is not passed - output will be sent to STDERR.
 # Returns      : FALSE/TRUE
 # Algorithm    : Trivial.
 # Dependencies : None.
@@ -56,18 +57,17 @@ sub new($)
     my ( $class, $debug_file ) = @_;
     my $self;
 
-    # Validate  call to c'tor:
-    die 'Bad call to constructor - check argument' unless defined $debug_file;
-    
-
    
     # Bless object:    
     $self = fields::new $class;
     die "Can't create Logger object" unless defined $self;
 
-    $self->{Debug_Log}	    = $debug_file;
+    $self->{Debug_Log}	    = $debug_file if defined $debug_file;
     $self->{First_Message}  = 1;
     $self->{Separator}	    = $separator;
+    
+    $self->{Error_Message}  = 0; # Indicates this is an error message - it will be colored red.
+    $self->{Error_Color}    = ' RED ';
     
     $self->{time_pack} = $time_pack;
     $self->{sub_pack}  = $sub_pack;
@@ -78,36 +78,6 @@ sub new($)
 }
 
 
-
-# -----------------------------------------------------------------
-# Name         : new_stdout() (constructor).
-# Description  : Simple constructor that sets the unique_id value
-#		 that prints only to STDERR.
-# Recives      : Unique_id.
-# Returns      : FALSE/TRUE
-# Algorithm    : Trivial.
-# Dependencies : None.
-# -----------------------------------------------------------------
-sub new_stdout()
-{
-    my $class = shift;
-    my $self;
-
-  
-    # Bless object:    
-    $self = fields::new $class; 
-    die "Can't create Logger object" unless defined $self;
-
-    $self->{First_Message} = 1;
-    $self->{Separator}	   = $separator;
-    
-    $self->{time_pack} = $time_pack;
-    $self->{sub_pack}  = $sub_pack;
-    $self->{line_pack} = $line_pack;
-    $self->{msg_pack}  = $msg_pack; 
-    
-    return $self;    
-}
 
 
 # -----------------------------------------------------------------
@@ -121,11 +91,17 @@ sub new_stdout()
 # -----------------------------------------------------------------
 sub debug_message($)
 {  
-    my ( $self, $message ) = @_;
+    my $self = shift;
+    my $message = shift;
+    my $error_flag = shift;    # indicates this is an error message
+    
     my ( $package, $sub, $line, $time ) ;
     my $debug_message = '';
     my $rc;
-
+    
+    # If it's an error message, we raise the flag.
+    $self->{Error_Message} = 1 if defined $error_flag;
+   
     
     # Bad call to method?
     unless ( defined $message )
@@ -141,13 +117,28 @@ sub debug_message($)
 
     # It's the first time we print a message, so let's create the headers:
     $debug_message  = $self->_get_header() if $self->{First_Message};
-
-    
-    $debug_message .= $self->_pack_str( $time, $package, $sub, $line, $message );
-    
-    
     $self->_print_to_file( $debug_message ) if defined $self->{Debug_Log};
     print STDERR $debug_message;
+
+    # Now the message parameters;
+    $debug_message = $self->_pack_str( $time, $package, $sub, $line, $message );
+    $self->_print_to_file( $debug_message ) if defined $self->{Debug_Log};
+    print STDERR $debug_message;
+    
+    # Now we pack and print the actual message.
+    # We do this here because we want to play with the colors:
+    $debug_message = pack ( $self->{msg_pack} , $message ) . "\n";
+    $self->_print_to_file( $debug_message ) if defined $self->{Debug_Log};
+    
+    if ( $self->{Error_Message} ) {
+        print STDERR BLINK RED $debug_message, RESET;
+    } else {
+        print STDERR $debug_message;
+    }
+   
+
+    # Reset error flag:
+    $self->{Error_Message} = 0; 
     
 
     return 1;    
@@ -197,7 +188,7 @@ sub _get_header()
     $headers .= pack $self->{sub_pack}, 'METHOD';
     $headers .= pack $self->{line_pack}, 'LINE';
     $headers .= pack $self->{msg_pack}, 'MESSAGE';
-    $headers .= "\n";
+    #$headers .= "\n";
     
     $headers .= $self->{Separator};
     
@@ -232,8 +223,8 @@ sub _pack_str( $$$$ )
     $result  = pack ( $self->{time_pack}, " $time" );
     $result .= pack ( $self->{sub_pack} , $package .'::' . $sub );
     $result .= pack ( $self->{line_pack}, $line );
-    $result .= pack ( $self->{msg_pack} , $message );
-    $result .= "\n";
+    #$result .= pack ( $self->{msg_pack} , $message );
+    #$result .= "\n";
     
     return $result;
     
@@ -252,7 +243,7 @@ sub _get_debug_params()
     my $self = shift;
     my ( $package, $sub, $line, $time );
     
-    $time = Pat::General::eval_time();
+    $time = $self->eval_time();
     
     my @caller_param_1 = caller(1);
     my @caller_param_2 = caller(2);
@@ -280,6 +271,35 @@ sub _get_debug_params()
 
     return ( $package, $sub, $line, $time );
 }
+
+
+# *******************************************************************************************************
+# Name          : eval_time()
+#                 This subroutine evaluates an output file-name according to the follwoing format:
+#		  'DMYHMS'.
+# Parameters    : None.
+#
+# Algorithm     : (1) Obtain Current date and time from time2str() function.
+#                 (2) Create string matching format.
+#
+# Return value  : String holding the outpfile.
+#
+# Dependencies  : HTTP::Date.
+# ********************************************************************************************************
+
+sub eval_time()
+{
+	my $tm = localtime;
+	my ( $DAY, $MONTH, $YEAR, $HOUR, $MINUTE, $SECOND ) = ( $tm->mday, $tm->mon, $tm->year, $tm->hour, $tm->min, $tm->sec );
+	$MONTH++;
+	$YEAR += 1900;
+	$YEAR = substr( $YEAR, 2, 2);
+	my $time_and_date = $DAY . '/' . $MONTH . '/' . $YEAR . '-' . $HOUR . ':' . $MINUTE . ':' . $SECOND;
+
+	return $time_and_date;
+}
+
+
 
 
 return 1;
@@ -310,27 +330,13 @@ __END__
     die $@ if $@;
 
     $logger->debug_message ( "Logger will tell you the package, subroutine and line number" );
-    $logger->debug_message ( 'your debug message originated from' );
-    $logger->debug_message ( "This line will blink in RED!", 'ERROR' ); # A second argument wil make the message appear in blinking red color.
-
-=over
-
-=item * Print to STDERR only:
-
-=back
-
-=head1
-
-    use Pat::Logger;
-    eval { $logger = new Pat::Logger() };
-    die $@ if $@;
-
-    $logger->debug_message ( "This line will go to STDERR only" );
+    $logger->debug_message ( 'your debug message originated from' )
+    $logger->debug_message ( "Exception caught: $@" );
     $logger->separate;
     $logger->debug_message ( "This line is separated from the previous one" );
+    $logger->debug_message ( "Fatal Error: $!", 'ERROR' ); # This message will blink in Red.
 
-    
-   
+      
 
 =head1 DESCRIPTION
 
@@ -343,31 +349,30 @@ __END__
     Logger does just that.
 
     There are two working modes for Logger:
+
     (1) Debugging to STDERR+file.
     (2) Debugging to STDERR only.
 
 =over
 
-=item  * B<new($)> ( With or without parameter )
+=item  * B<new($)>
 
-    This constructor can receive a file name to output all message to.
+    This constructor expects a file name to output all message to.
     Upon success, a blessed hash reference will be returned.
     Upon failure the method dies, and $@ will hold the error message.
+    
+    If a file name is not passed, Logger will output all messages to STDERR only.
 
-    If a parameter is not passed, Logger will output all the debug messages to STDERR.
 
+=item * B<debug_message($)>
 
-=item * B<debug_message($$)>
-
-    This method takes two argument - the debug message you wish to log and it's severity.
-
-    For example:
-    $logger->debug_message ( "This is a regular message" );
-    $logger->debug_message ( "I cought an exception: $@", 'ERROR' ); # This message will stand out from the others,
-								     # As it will blink in red color.  
+    This method takes two argument - the debug message you wish to log, and the type of the message.
+    Currently supported type is 'ERROR'. When the second argument is 'ERROR', the debug message willl appear
+    in blinking Red color ( in case the Terminal e,ulator supports it ).
+    
     Upon success - the method returns 1.
     Upon failre  - the method returns 0.
-
+    
     The Logger object does all the work behind the scenes:
     (1) Grab the package, subroutine name and line number which the message originated from.
     (2) Create a nice format with the parameters aforementioned.
@@ -376,25 +381,24 @@ __END__
 =item * B<separate()>
 
     You may wish to create visual separation between messages.
+    When you invoke separate(), a line consistant of 152 x '-' will be outputed.
+
     This length is coherent with the length of the format.
+    
+=head1 WIDTH CONTROL
+
+    The Logger module B<uses pack()> to indent the output.
+    You can control the  width of each field by altering the code:
+                         
+    my $time_pack = 'A18'; This mean the 'TIME' column is 18 byte long.
+    my $sub_pack  = 'A39';
+    my $line_pack = 'A6';
+    my $msg_pack  = 'A97';
+                         
+    Upon modification of this fields, Logger automatically calculates the new scheme,
+    and adjusts all relevant fields accordingly, to your convenience.
+
  
-
-=head1 CONTROLING LENGTHS
-
-    It is possible to control the space of each field ( Time, Message, etc ).
-    At the top of the module, you need to adjust the gloabl Variables' value.
-
-    For example, if you wish to donate 50 characters to the message itself,
-    simply modify the $msg_pack from 'A99' to 'a50'. The same goes for the other fields.
-
-    the module automatically adjusts the header and separation when you modify the length of the fields.
-
-    # Global variables:
-    my $time_pack = 'A22';	# Control length of time field ( No real need to do so - It's optimized ).
-    my $sub_pack  = 'A29';	# Control length of subroutine field. 
-    my $line_pack = 'A10';	# Control length of line number fiekd.
-    my $msg_pack  = 'A99';	# Control length of message field.
-
 
 =head1 BUGS
 
