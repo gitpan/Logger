@@ -1,0 +1,106 @@
+Logger version 0.01
+===================
+
+NAME
+        Pat::Logger - OO debugging tool which outputs logging messages in a nifty format.
+
+
+SYNOPSIS
+       · Print messages to both STDOUT and a file:
+
+
+           use Pat::Logger;
+           $debug_file = '/tmp/foo.log';
+           eval { $logger = new Logger ( $debug_file ) };
+           die $@ if $@;
+
+           $logger->debug_message ( "Logger will tell you the package, subroutine and line number" );
+           $logger->debug_message ( 'your debug message originated from' );
+
+
+       · Print to STDOUT only:
+
+
+           use Pat::Logger;
+           eval { $logger = new_stdout Logger() };
+           die $@ if $@;
+
+           $logger->debug_message ( "This line will go to STDOUT only" );
+           $logger->separate;
+           $logger->debug_message ( "This line is separated from the previous one" );
+
+
+DESCRIPTION
+           The Logger module is a nifty tool to organaize your debug messages.
+
+           While writing your code you need a tool to output your debug messages.
+           You want to see where the message originated from (which module, which subroutine and line number),
+           so you can proceed directly to solving the matter, rather than search for it's location.
+           Logger does just that.
+
+           There are two working modes for Logger, each one has it's own constructor:
+
+           (1) Debugging to STDOUT+file.
+           (2) Debugging to STDOUT only.
+
+
+
+       · new($)
+               This constructor expects a file name to output all message to.
+               Upon success, a blessed hash reference will be returned.
+               Upon failure the method dies, and $@ will hold the error message.
+
+
+       · new_stdout()
+               All debug messages will be sent to STDOUT solemly.
+               Upon success, a blessed hash reference will be returned.
+               Upon failure the method dies, and $@ will hold the error message.
+
+
+       · debug_message($)
+               This method takes one argument - the debug message you wish to log.
+               Upon success - the method returns 1.
+               Upon failre  - the method returns 0.
+
+               The Logger object does all the work behind the scenes:
+               (1) Grab the package, subroutine name and line number which the message originated from.
+               (2) Create a nice format with the parameters aforementioned.
+               (3) Output it according to object type.
+
+
+       · separate()
+               You may wish to create visual separation between messages.
+               When you invoke separate(), a line consistant of 152 x '-' will be outputed.
+
+               This length is coherent with the length of the format.
+
+
+BUGS
+           None at the moment.
+           If you have any question or comment - nirp@aduva.com
+
+
+COPYRIGHT
+           Copyright 2001-2002, Pengas Nir
+
+           This library is free software - you can redistribute
+           it and/or modify it under the same terms as Perl itself.
+
+
+
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+   fields pragma.
