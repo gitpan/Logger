@@ -1,6 +1,7 @@
-Revision history for Perl extension Logger.
 
-0.01  Tue Nov 20 15:42:26 2001
-	- original version; created by h2xs 1.21 with options
-		-Xn Logger
 
+V2.0
+----
+Removed method _format_to_str(). Instead I'm using pack() to format the output.
+This is done to to some wierd problems I encountered when filtering my own output
+(such as dbh disconnection in every call to debug_message().

@@ -2,7 +2,7 @@
 BEGIN { $diagnostics::PRETTY = 1 }
 
 package Pat::Logger;
-our $VERSION = '1.3';
+our $VERSION = '2.0';
 
 use strict;
 use diagnostics;
@@ -21,13 +21,13 @@ sub separate();
 
 
 sub _get_header();
-sub _format_to_str($$$$);
+sub _pack_str($$$$);
 sub _print_to_file($);
 sub _get_debug_params();
 
 
 # Global variables:
-our $separator = "\n\n" . scalar ('-' x 152) . "\n\n";
+my $separator = "\n\n" . scalar ('-' x 152) . "\n\n";
 
 
 # -----------------------------------------------------------------
@@ -55,7 +55,7 @@ sub new($)
     $self->{Debug_Log}	    = $debug_file;
     $self->{First_Message}  = 1;
     $self->{Separator}	    = $separator;
-
+   
 
 
     return $self;
@@ -66,7 +66,7 @@ sub new($)
 # -----------------------------------------------------------------
 # Name         : new_stdout() (constructor).
 # Description  : Simple constructor that sets the unique_id value
-#		 that prints only to STDOUT.
+#		 that prints only to STDERR.
 # Recives      : Unique_id.
 # Returns      : FALSE/TRUE
 # Algorithm    : Trivial.
@@ -84,6 +84,7 @@ sub new_stdout()
 
     $self->{First_Message} = 1;
     $self->{Separator}	   = $separator;
+    
 
     return $self;    
 }
@@ -99,8 +100,7 @@ sub new_stdout()
 # Dependencies : None.
 # -----------------------------------------------------------------
 sub debug_message($)
-{
-    
+{  
     my ($self, $message) = @_;
     my ($package, $sub, $line) ;
     my $debug_message = '';
@@ -123,11 +123,11 @@ sub debug_message($)
     $debug_message  = $self->_get_header() if $self->{First_Message};
 
     
-    $debug_message .= $self->_format_to_str( $package, $sub, $line, $message );
+    $debug_message .= $self->_pack_str( $package, $sub, $line, $message );
     
     
     $self->_print_to_file( $debug_message ) if defined $self->{Debug_Log};
-    print $debug_message;
+    print STDERR $debug_message;
     
 
     return 1;    
@@ -192,57 +192,31 @@ sub separate()
 
 
 
-sub _format_to_str( $$$$ )
+
+
+sub _pack_str( $$$$ )
 {
     my $self = shift;
     my ( $package, $sub, $line, $message ) = @_;
     my $pid;
     my $result = '';
-    my $separator = "\n\n" . scalar ('-' x 152) . "\n\n";
-
+    
+ 
+    #print "I got $package, $sub, $line, $message\n";
    
-
-    $pid = open ( FILTER, '-|' );
-    die "Can't fork $!" unless defined $pid;
-
-
-    # father executes here:
-    if ( $pid )
-    {
-	my $line_from_son = '';
-	while ( defined ( $line_from_son = <FILTER> ) ) {
-	    
-	    $result .= $line_from_son;
-	}
-	waitpid( $pid, 0 );
-	close FILTER;
-    }
-
-
-    else
-    {
-	
-
-    # From here on it's the son, writing to filter:    
-
+    $result  = pack ( "A16", " $package" );
+    $result .= pack ( "A29", $sub );
+    $result .= pack ( "A10", $line );
+    $result .= pack ( "A98", $message );
+    $result  .= "\n";
     
-        my $str = '
+    return $result;
     
-	format STDOUT =
-@<<<<<<<<<<<<<<<@<<<<<<<<<<<<<<<<<<<<<<<<<<<<@<<<<<<<<<@<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-" $package",	$sub,  			     $line,    $message
-.   
-    write STDOUT;';
 
-	#no warnings;
-        eval $str;
-	print STDOUT "$@\n" if $@;
-	#print STDERR "Son $pid exiting\n";
-	close STDOUT;
-	exit;
-    }
-
-    return $result;    
+#<<<<<<<<<<<<<<< - $package
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<< - $sub
+#<<<<<<<<< - $line
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -   $message  
 }
 
 
@@ -290,14 +264,13 @@ __END__
 
 =head1 NAME
 
- Pat::Logger - OO debugging tool which outputs logging messages in a nifty format.
-               (Pat stands for Parogrammer Assisting Tools).
+ Logger - Debugging tool which outputs logging messages in a nifty format.
 
 =head1 SYNOPSIS
 
 =over
 
-=item * Print messages to both STDOUT and a file:
+=item * Print messages to both STDERR and a file:
 
 =back
     
@@ -313,7 +286,7 @@ __END__
 
 =over
 
-=item * Print to STDOUT only:
+=item * Print to STDERR only:
 
 =back
 
@@ -323,7 +296,7 @@ __END__
     eval { $logger = new_stdout Pat::Logger() };
     die $@ if $@;
 
-    $logger->debug_message ( "This line will go to STDOUT only" );
+    $logger->debug_message ( "This line will go to STDERR only" );
     $logger->separate;
     $logger->debug_message ( "This line is separated from the previous one" );
 
@@ -337,30 +310,31 @@ __END__
     While writing your code you need a tool to output your debug messages.
     You want to see where the message originated from (which module, which subroutine and line number),
     so you can proceed directly to solving the matter, rather than search for it's location.
+    Not only you want to see the messages on screen, you want to have them in a local file as well.
     Logger does just that.
 
     There are two working modes for Logger, each one has it's own constructor:
 
-    (1) Debugging to STDOUT+file.
-    (2) Debugging to STDOUT only.
+    (1) Debugging to STDERR+file.
+    (2) Debugging to STDERR only.
 
 =over
 
-=item  * new($)
+=item  * B<new($)>
 
     This constructor expects a file name to output all message to.
     Upon success, a blessed hash reference will be returned.
     Upon failure the method dies, and $@ will hold the error message.
 
 
-=item * new_stdout()
+=item * B<new_stdout()>
 
-    All debug messages will be sent to STDOUT solemly.
+    All debug messages will be sent to STDERR solemly.
     Upon success, a blessed hash reference will be returned.
     Upon failure the method dies, and $@ will hold the error message.
     
 
-=item * debug_message($)
+=item * B<debug_message($)>
 
     This method takes one argument - the debug message you wish to log.
     Upon success - the method returns 1.
@@ -371,7 +345,7 @@ __END__
     (2) Create a nice format with the parameters aforementioned.
     (3) Output it according to object type.
 
-=item * separate()
+=item * B<separate()>
 
     You may wish to create visual separation between messages.
     When you invoke separate(), a line consistant of 152 x '-' will be outputed.

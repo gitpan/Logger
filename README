@@ -1,63 +1,64 @@
-Logger version 0.01
-===================
-
-NAME
-        Pat::Logger - OO debugging tool which outputs logging messages in a nifty format.
 
 
-SYNOPSIS
-       · Print messages to both STDOUT and a file:
+
+
+NNNNAAAAMMMMEEEE
+        Logger - Debugging tool which outputs logging messages in a nifty format.
+
+
+SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
+       · Print messages to both STDERR and a file:
 
 
            use Pat::Logger;
            $debug_file = '/tmp/foo.log';
-           eval { $logger = new Logger ( $debug_file ) };
+           eval { $logger = new Pat::Logger ( $debug_file ) };
            die $@ if $@;
 
            $logger->debug_message ( "Logger will tell you the package, subroutine and line number" );
            $logger->debug_message ( 'your debug message originated from' );
 
 
-       · Print to STDOUT only:
+       · Print to STDERR only:
 
 
            use Pat::Logger;
-           eval { $logger = new_stdout Logger() };
+           eval { $logger = new_stdout Pat::Logger() };
            die $@ if $@;
 
-           $logger->debug_message ( "This line will go to STDOUT only" );
+           $logger->debug_message ( "This line will go to STDERR only" );
            $logger->separate;
            $logger->debug_message ( "This line is separated from the previous one" );
 
 
-DESCRIPTION
+DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
            The Logger module is a nifty tool to organaize your debug messages.
 
            While writing your code you need a tool to output your debug messages.
            You want to see where the message originated from (which module, which subroutine and line number),
            so you can proceed directly to solving the matter, rather than search for it's location.
+           Not only you want to see the messages on screen, you want to have them in a local file as well.
            Logger does just that.
 
            There are two working modes for Logger, each one has it's own constructor:
 
-           (1) Debugging to STDOUT+file.
-           (2) Debugging to STDOUT only.
+           (1) Debugging to STDERR+file.
+           (2) Debugging to STDERR only.
 
 
-
-       · new($)
+       · _nn_ee_ww(((($$$$))))
                This constructor expects a file name to output all message to.
                Upon success, a blessed hash reference will be returned.
                Upon failure the method dies, and $@ will hold the error message.
 
 
-       · new_stdout()
-               All debug messages will be sent to STDOUT solemly.
+       · _nn_ee_ww____ss_tt_dd_oo_uu_tt_((_))
+               All debug messages will be sent to STDERR solemly.
                Upon success, a blessed hash reference will be returned.
                Upon failure the method dies, and $@ will hold the error message.
 
 
-       · debug_message($)
+       · _dd_ee_bb_uu_gg____mm_ee_ss_ss_aa_gg_ee(((($$$$))))
                This method takes one argument - the debug message you wish to log.
                Upon success - the method returns 1.
                Upon failre  - the method returns 0.
@@ -68,19 +69,19 @@ DESCRIPTION
                (3) Output it according to object type.
 
 
-       · separate()
+       · _ss_ee_pp_aa_rr_aa_tt_ee_((_))
                You may wish to create visual separation between messages.
                When you invoke separate(), a line consistant of 152 x '-' will be outputed.
 
                This length is coherent with the length of the format.
 
 
-BUGS
+BBBBUUUUGGGGSSSS
            None at the moment.
-           If you have any question or comment - nirp@aduva.com
+           If you have any question or comment - pengas@cpan.org
 
 
-COPYRIGHT
+CCCCOOOOPPPPYYYYRRRRIIIIGGGGHHHHTTTT
            Copyright 2001-2002, Pengas Nir
 
            This library is free software - you can redistribute
@@ -89,18 +90,41 @@ COPYRIGHT
 
 
 
-INSTALLATION
-
-To install this module type the following:
-
-   perl Makefile.PL
-   make
-   make test
-   make install
+2002-01-03                 perl v5.6.1                          1
 
 
-DEPENDENCIES
 
-This module requires these other modules and libraries:
 
-   fields pragma.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
