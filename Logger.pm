@@ -1,8 +1,8 @@
 
 BEGIN { $diagnostics::PRETTY = 1 }
 
-package Pat::Logger;
-our $VERSION = '3.3';
+package Logger::Logger;
+our $VERSION = '3.42';
 
 use Time::localtime;
 
@@ -401,9 +401,9 @@ __END__
     
 =head1
 
-    use Pat::Logger;
+    use Logger::Logger;
     $debug_file = '/tmp/foo.log';
-    eval { $logger = new Pat::Logger ( $debug_file ) };
+    eval { $logger = new Logger::Logger ( $debug_file ) };
     die $@ if $@;
 
     $logger->debug_message ( 'Logger will tell you the package, subroutine, line number and the time your debug message originated from' );

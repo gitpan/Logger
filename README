@@ -12,9 +12,9 @@ SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
        · Print messages to both STDERR and a file:
 
 
-           use Pat::Logger;
+           use Logger::Logger;
            $debug_file = '/tmp/foo.log';
-           eval { $logger = new Pat::Logger ( $debug_file ) };
+           eval { $logger = new Logger::Logger ( $debug_file ) };
            die $@ if $@;
 
            $logger->debug_message ( 'Logger will tell you the package, subroutine, line number and the time your debug message originated from' );
@@ -97,7 +97,7 @@ CCCCOOOOPPPPYYYYRRRRIIIIGGGGHHHHTTTT
 
 
 
-2002-02-26                 perl v5.6.1                          1
+2002-03-03                 perl v5.6.1                          1
 
 
 

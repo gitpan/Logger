@@ -9,6 +9,6 @@ which is not available. Please upgrade.
 # -------------------------------------
 FIELDS
 WriteMakefile(
-    'NAME'		=> 'Pat::Logger',
+    'NAME'		=> 'Logger::Logger',
     'VERSION_FROM'	=> 'Logger.pm', 
 );
