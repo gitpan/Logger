@@ -1,7 +1,7 @@
 
 
 
-.::Logger(3)   User Contributed Perl Documentation   .::Logger(3)
+Logger(3)      User Contributed Perl Documentation      Logger(3)
 
 
 NNNNAAAAMMMMEEEE
@@ -17,20 +17,20 @@ SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
            eval { $logger = new Pat::Logger ( $debug_file ) };
            die $@ if $@;
 
-           $logger->debug_message ( "Logger will tell you the package, subroutine and line number" );
-           $logger->debug_message ( 'your debug message originated from' )
-           $logger->debug_message ( "Exception caught: $@" );
+           $logger->debug_message ( 'Logger will tell you the package, subroutine, line number and the time your debug message originated from' );
            $logger->separate;
-           $logger->debug_message ( "This line is separated from the previous one" );
-           $logger->debug_message ( "Fatal Error: $!", 'ERROR' ); # This message will blink in Red.
+           $logger->debug_message ( 'This line is separated from the previous one' );
+           $logger->debug_message ( "An error occured", 'ERROR' ); # This message will blink in Red.
+           $logger->debug_message ( "This line is much longer to fit in a single row. Logger will split it nicely, without chopping off words and display it in multiple rows" );
 
 
 DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
-           The Logger module is a nifty tool to organaize your debug messages.
+           The Logger module is a nifty tool to organaize your debug messages, and thus your program flow.
 
            While writing your code you need a tool to output your debug messages.
-           You want to see where the message originated from (which module, which subroutine and line number),
+           You want to see where the message originated from ( which module, which subroutine and line number and at what time ),
            so you can proceed directly to solving the matter, rather than search for it's location.
+           You want to destinguish between an error message, and yet another flow control message.
            Not only you want to see the messages on screen, you want to have them in a local file as well.
            Logger does just that.
 
@@ -51,13 +51,13 @@ DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
        · _dd_ee_bb_uu_gg____mm_ee_ss_ss_aa_gg_ee(((($$$$))))
                This method takes two argument - the debug message you wish to log, and the type of the message.
                Currently supported type is 'ERROR'. When the second argument is 'ERROR', the debug message willl appear
-               in blinking Red color ( in case the Terminal e,ulator supports it ).
+               in blinking Red color ( in case your Terminal supports it ).
 
                Upon success - the method returns 1.
                Upon failre  - the method returns 0.
 
                The Logger object does all the work behind the scenes:
-               (1) Grab the package, subroutine name and line number which the message originated from.
+               (1) Grab the time, package, subroutine name and line number which the message originated from.
                (2) Create a nice format with the parameters aforementioned.
                (3) Output it according to object type.
 
@@ -65,13 +65,13 @@ DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
        · _ss_ee_pp_aa_rr_aa_tt_ee_((_))
 
                You may wish to create visual separation between messages.
-               When you invoke separate(), a line consistant of 152 x '-' will be outputed.
+               When you invoke separate(), a line consistant of '-' will be outputed.
 
-               This length is coherent with the length of the format.
+               This length is automatically calculated by Logger.
 
 
 WWWWIIIIDDDDTTTTHHHH CCCCOOOONNNNTTTTRRRROOOOLLLL
-           The Logger module B<uses pack()> to indent the output.
+           The Logger module uses pack() to indent the output.
            You can control the  width of each field by altering the code:
 
            my $time_pack = 'A18'; This mean the 'TIME' column is 18 byte long.
@@ -97,7 +97,7 @@ CCCCOOOOPPPPYYYYRRRRIIIIGGGGHHHHTTTT
 
 
 
-2002-02-10                 perl v5.6.1                          1
+2002-02-26                 perl v5.6.1                          1
 
 
 
