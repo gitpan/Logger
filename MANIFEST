@@ -1,5 +1,6 @@
 Changes
 Logger.pm
+General.pm
 Makefile.PL
 MANIFEST
 README
