@@ -2,27 +2,33 @@
 BEGIN { $diagnostics::PRETTY = 1 }
 
 package Logger::Logger;
-our $VERSION = '3.42';
+
+@ISA       = qw( Exporter );
+@EXPORT_OK = qw( $Error );
+
+our $VERSION = '0.34';
 
 use Time::localtime;
 
+use vars qw( $Error );
 use strict;
 use diagnostics;
 use Fcntl ':flock';
 use Term::ANSIColor qw (:constants);
 
-use fields qw (msg_split_width Mode Error_Message Error_Color Debug_Log First_Message Separator time_pack sub_pack line_pack msg_pack );
+#use fields qw (msg_split_width Mode Error_Message Error_Color Debug_Log First_Message Separator time_pack sub_pack line_pack msg_pack );
 
 
 # ------------------------
 # subroutine declorations:
 #-------------------------
-sub new($);
-sub debug_message($);
+sub new( $ );
+sub debug_message( $$ );
 sub separate();
 
 
 sub eval_time();
+sub _SetError($);
 sub _get_header();
 sub _pack_str($$$);
 sub _print_to_file($);
@@ -44,6 +50,12 @@ $separator .= '-' x substr $msg_pack , 1;
 $separator .= "\n\n";
 
 
+sub _SetError( $ )
+{
+    my $self = shift;
+    $Error = shift;
+}
+
 # -----------------------------------------------------------------
 # Name         : new() (constructor).
 # Description  : Simple constructor that sets the unique_id value
@@ -55,14 +67,18 @@ $separator .= "\n\n";
 # -----------------------------------------------------------------
 sub new($)
 {
-    my ( $class, $debug_file ) = @_;
-    my $self;
-   
-   
-    # Bless object:    
-    $self = fields::new $class;
-    die "Can't create Logger object" unless defined $self;
+    my ( $class, $debug_file, $mode ) = @_;
+    my $self = {};
 
+    # Bless object:    
+    #$self = fields::new $class;
+    
+    unless ( bless $self, $class )
+    {
+        $self->_SetError( "Can't bless: $!" );
+        return 0;
+    }
+    
     $self->{Debug_Log}	    = $debug_file if defined $debug_file;
     $self->{First_Message}  = 1;
     $self->{Separator}	    = $separator;
@@ -81,7 +97,16 @@ sub new($)
         $self->{msg_split_width} += $1;
     }
     
-    #print "Msg length is $self->{msg_split_width}\n";
+    # If TRUE we are in Daemon mode,
+    # all will be logged to a file ONLY.
+    $self->{DAEMON_MODE} = ( defined $mode and $mode == 1 ) ? 1 : 0; 
+    
+    if ( $self->{DAEMON_MODE} == 1 and !defined $debug_file )
+    {
+        $self->_SetError( "No debug file, and Daemon mode on...?!" );
+        return 0;
+    }
+    
     return $self;
 }
 
@@ -97,7 +122,7 @@ sub new($)
 # Algorithm    : Trivial.
 # Dependencies : None.
 # -----------------------------------------------------------------
-sub debug_message($)
+sub debug_message($$)
 {  
     my $self = shift;
     my $message = shift;
@@ -109,13 +134,14 @@ sub debug_message($)
     my @split_message;
     
     # If it's an error message, we raise the flag.
-    $self->{Error_Message} = 1 if defined $error_flag;
+    $self->{Error_Message} = 1 if ( defined $error_flag and $error_flag = 'ERROR' );
    
     
     # Bad call to method?
     unless ( defined $message )
     {
-	return warn "No debug message defined";
+        $self->_SetError( "No debug message defined" );
+        return 0;
     }
 
     chomp $message; #Just in case;        
@@ -127,12 +153,12 @@ sub debug_message($)
     # It's the first time we print a message, so let's create the headers:
     $debug_message  = $self->_get_header() if $self->{First_Message};
     $self->_print_to_file( $debug_message ) if defined $self->{Debug_Log};
-    print STDERR $debug_message;
+    print STDERR $debug_message unless $self->{DAEMON_MODE};
 
     # Now the message parameters;
     $debug_message = $self->_pack_str( $time, $package, $sub, $line );
     $self->_print_to_file( $debug_message ) if defined $self->{Debug_Log};
-    print STDERR $debug_message;
+    print STDERR $debug_message unless $self->{DAEMON_MODE};
    
     
     # Now we pack and print the actual message.
@@ -142,9 +168,9 @@ sub debug_message($)
     $message .= "\n";
     
     if ( $self->{Error_Message} ) {
-        print STDERR BLINK RED $message, RESET;
+        print STDERR RED $message, RESET unless $self->{DAEMON_MODE};
     } else {
-        print STDERR $message;
+        print STDERR $message  unless $self->{DAEMON_MODE};
     }
     $self->_print_to_file( $message ) if defined $self->{Debug_Log};
     
@@ -155,28 +181,15 @@ sub debug_message($)
     {
         $message .= "\n";
         if ( $self->{Error_Message} ) {
-            print STDERR BLINK RED  $gap . $message   , RESET;
+            print STDERR RED  $gap . $message   , RESET unless $self->{DAEMON_MODE};
         } else {
-            print STDERR $gap . $message   ;
+            print STDERR $gap . $message unless $self->{DAEMON_MODE};
         }
         $self->_print_to_file( $gap . $message   ) if defined $self->{Debug_Log};
     }
     
-    
-    
-    #$debug_message = pack ( $self->{msg_pack} , $message ) . "\n";
-    #$self->_print_to_file( $debug_message ) if defined $self->{Debug_Log};
-    
-    #if ( $self->{Error_Message} ) {
-    #    print STDERR BLINK RED $debug_message, RESET;
-    #} else {
-    #    print STDERR $debug_message;
-    #}
-   
-
     # Reset error flag:
     $self->{Error_Message} = 0; 
-    
 
     return 1;    
 }
@@ -284,7 +297,7 @@ sub separate()
     my $self = shift;
 
     $self->_print_to_file( $self->{Separator} ) if defined $self->{Debug_Log};
-    print $self->{Separator};
+    print STDERR $self->{Separator} unless $self->{DAEMON_MODE};
     
     return 1; 
 }   
@@ -389,13 +402,13 @@ __END__
 
 =head1 NAME
 
- Logger - Debugging tool which outputs logging messages in a nifty format.
+ Logger - Smart debugging tool which outputs logging messages in a nifty and elaborate format.
 
 =head1 SYNOPSIS
 
 =over
 
-=item * Print messages to both STDERR and a file:
+=item * Log messages to both STDERR and a file:
 
 =back
     
@@ -403,48 +416,78 @@ __END__
 
     use Logger::Logger;
     $debug_file = '/tmp/foo.log';
-    eval { $logger = new Logger::Logger ( $debug_file ) };
-    die $@ if $@;
+    $logger = new Logger::Logger ( $debug_file, 0 ) or die "Can't create object: Logger::Logger::Error;
 
     $logger->debug_message ( 'Logger will tell you the package, subroutine, line number and the time your debug message originated from' );
     $logger->separate;
     $logger->debug_message ( 'This line is separated from the previous one' );
-    $logger->debug_message ( "An error occured", 'ERROR' ); # This message will blink in Red.
+    $logger->debug_message ( "Exception caught: $@", 'ERROR' ); # This message will blink in Red.
     $logger->debug_message ( "This line is much longer to fit in a single row. Logger will split it nicely, without chopping off words and display it in multiple rows" );
-     
+
+=item * Log messages quielty to a file ( daemon mode );
+
+=back
+
+=head1
+
+    use Logger::Logger;
+    $debug_file = '/tmp/foo.log';
+    $logger = new Logger::Logger ( $debug_file, 1 ) or die "Can't create object: Logger::Logger::Error;
+    
+    $logger->debug_message ( 'This message will be concatenated to your log file, without STDERR polution' );
+    $logger->separate;
+    
+    
+=item * Log messages to STERR only:
+    
+    use Logger::Logger;
+    $logger = new Logger::Logger () or die "Can't create object: Logger::Logger::Error;
+    
+    $logger->debug_message ( 'This message will appear on STDERR only' );
+    $logger->separate;
+
 
 =head1 DESCRIPTION
 
-    The Logger module is a nifty tool to organaize your debug messages, and thus your program flow.
+    The Logger module is a nifty tool to organaize your debug messages, and thus your understand of the program flow.
 
     While writing your code you need a tool to output your debug messages.
-    You want to see where the message originated from ( which module, which subroutine and line number and at what time ),
+    You want to see where the message originated from ( which module, which subroutine, line number and at what time ),
     so you can proceed directly to solving the matter, rather than search for it's location.
-    You want to destinguish between an error message, and yet another flow control message.
+    
+    You want to destinguish between an ERROR message, and yet another flow control message ( an INFO message ).
     Not only you want to see the messages on screen, you want to have them in a local file as well.
+    Sometimes you might write a deamon that works in the background. In this case you need not see logging messages
+    poluting your terminal.
     Logger does just that.
 
-    There are two working modes for Logger:
+    There are 3 working modes for Logger:
 
-    (1) Debugging to STDERR+file.
+    (1) Debugging to STDERR + file.
     (2) Debugging to STDERR only.
+    (3) Debugging to file only ( daemon/silent mode ).
 
 =over
 
 =item  * B<new($)>
 
-    This constructor expects a file name to output all message to.
-    Upon success, a blessed hash reference will be returned.
-    Upon failure the method dies, and $@ will hold the error message.
+    This constructor expects two parameters:
+    (1) A file name to output all message to.
+    (2) Daemon mode boolian flag ( 1 for true, 0 for false ).
     
-    If a file name is not passed, Logger will output all messages to STDERR only.
+    If the first argument is omitted, logging will occur to STDERR only.
+    If the second argument is ommited, deamon mode defaults to false.
+    
+    Upon success, a blessed hash reference will be returned.
+    Upon failure the method returns 0 and the global $Error varabile will hold the error message
+    ( Accessing it - $Logger::Logger::Error ).
 
 
-=item * B<debug_message($)>
+=item * B<debug_message($$)>
 
     This method takes two argument - the debug message you wish to log, and the type of the message.
     Currently supported type is 'ERROR'. When the second argument is 'ERROR', the debug message willl appear
-    in blinking Red color ( in case your Terminal supports it ).
+    in Red color ( in case your Terminal supports it ), thus distinguishing it from other 'INFO' messages.
     
     Upon success - the method returns 1.
     Upon failre  - the method returns 0.
@@ -461,7 +504,7 @@ __END__
 
     This length is automatically calculated by Logger.
     
-=head1 WIDTH CONTROL
+=head1 CONFIGURATION - WIDTH CONTROL
 
     The Logger module uses pack() to indent the output.
     You can control the  width of each field by altering the code:
@@ -487,7 +530,8 @@ __END__
     Copyright 2001-2002, Pengas Nir
 
     This library is free software - you can redistribute 
-    it and/or modify it under the same terms as Perl itself.
+    it and/or modify it and/or do what ever you damn desire - 
+    under the same terms as Perl itself.
 
 
 =cut
