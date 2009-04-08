@@ -1,0 +1,7 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/Logger.t
+lib/Logger.pm
+META.yml                                 Module meta-data (added by MakeMaker)

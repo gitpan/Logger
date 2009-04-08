@@ -1,15 +1,11 @@
 use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
-# enjoy :]
-#
-# Begin of Makefile.PL
-
 WriteMakefile(
-    'NAME'		=> 'Logger',
-    'VERSION_FROM'	=> 'Logger.pm',
-    'PREREQ_PM'		=> {},
-    'AUTHOR'            => 'Damian Nardelli [dnardelli@iplan.com.ar]'
-    );
-
-# End of Makefile.PL
+    NAME              => 'Logger',
+    VERSION_FROM      => 'lib/Logger.pm', # finds $VERSION
+    PREREQ_PM         => {}, # e.g., Module::Name => 1.1
+    ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
+      (ABSTRACT_FROM  => 'lib/Logger.pm', # retrieve abstract from module
+       AUTHOR         => 'Ed Loehr <ed@localdomain>') : ()),
+);
